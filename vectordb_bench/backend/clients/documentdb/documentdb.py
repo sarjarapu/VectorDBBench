@@ -34,19 +34,25 @@ class DocumentDB(VectorDB):
         self.vector_field = vector_field
         self.drop_old = drop_old
 
-        # Extract version for search syntax selection
-        self.docdb_version = getattr(db_case_config, 'docdb_version', '5.0')
-
         # Build DocumentDB vectorOptions with dimensions
         self.index_params = self.case_config.index_param(dim)
-        log.info(f"DocumentDB version: {self.docdb_version}")
         log.info(f"vectorOptions: {self.index_params}")
 
         # Initialize - they'll also be set in init()
         uri = self.db_config["connection_string"]
-        self.client = MongoClient(uri)
+        self.client = MongoClient(
+            uri,
+            maxPoolSize=50,
+            serverSelectionTimeoutMS=60000,
+            connectTimeoutMS=30000,
+            socketTimeoutMS=120000,
+        )
         self.db = self.client[self.db_config["database"]]
         self.collection = self.db[self.collection_name]
+
+        # Auto-detect DocumentDB version from server
+        self.docdb_version = self._detect_version()
+        log.info(f"DocumentDB version detected: {self.docdb_version}")
         if self.drop_old and self.collection_name in self.db.list_collection_names():
             log.info(f"DocumentDB client dropping old collection: {self.collection_name}")
             self.db.drop_collection(self.collection_name)
@@ -59,7 +65,13 @@ class DocumentDB(VectorDB):
         """Initialize DocumentDB client and cleanup when done"""
         try:
             uri = self.db_config["connection_string"]
-            self.client = MongoClient(uri)
+            self.client = MongoClient(
+                uri,
+                maxPoolSize=50,
+                serverSelectionTimeoutMS=60000,
+                connectTimeoutMS=30000,
+                socketTimeoutMS=120000,
+            )
             self.db = self.client[self.db_config["database"]]
             self.collection = self.db[self.collection_name]
 
@@ -70,6 +82,17 @@ class DocumentDB(VectorDB):
                 self.client = None
                 self.db = None
                 self.collection = None
+
+    def _detect_version(self) -> str:
+        """Auto-detect DocumentDB version from server"""
+        try:
+            server_status = self.db.command("serverStatus")
+            version = server_status.get("version", "5.0.0")
+            log.info(f"Server reported version: {version}")
+            return version
+        except Exception:
+            log.warning("Could not detect DocumentDB version, defaulting to 5.0")
+            return "5.0.0"
 
     def _create_index(self) -> None:
         """Create vector search index using DocumentDB runCommand API"""
@@ -240,13 +263,23 @@ class DocumentDB(VectorDB):
         filters: dict | None,
         search_params: dict,
     ) -> list[int]:
-        """DocumentDB 5.0 search using $search with nested vectorSearch (HNSW)"""
+        """DocumentDB 5.0 search using $search with nested vectorSearch (HNSW)
+
+        Note: DocumentDB 5.0 does not support $meta score metadata.
+        Results are returned already sorted by similarity.
+        See: https://docs.aws.amazon.com/documentdb/latest/developerguide/vector-search.html
+        """
         vector_search_query = {
             "vector": query,
             "path": self.vector_field,
             "k": k,
             "similarity": self.case_config.parse_metric(),
         }
+
+        # Add efSearch for HNSW tuning if specified
+        ef_search = search_params.get("ef_search")
+        if ef_search:
+            vector_search_query["efSearch"] = ef_search
 
         pipeline = [
             {
@@ -258,15 +291,15 @@ class DocumentDB(VectorDB):
                 "$project": {
                     "_id": 0,
                     self.id_field: 1,
-                    "score": {"$meta": "searchScore"},
                 }
             },
         ]
 
-        # Add filter as $match stage after $search if specified
+        # Add filter as $match stage BEFORE $search if specified
+        # See: https://repost.aws/questions/QU5ZWwjLR0T_mb38YZ_Hhesw
         if filters:
             log.info(f"Applying filter: {filters}")
-            pipeline.insert(1, {
+            pipeline.insert(0, {
                 "$match": {
                     "id": {"$gte": filters["id"]}
                 }

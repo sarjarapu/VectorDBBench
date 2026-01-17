@@ -15,9 +15,6 @@ class DocumentDBConfig(DBConfig, BaseModel):
 
 
 class DocumentDBIndexConfig(BaseModel, DBCaseConfig):
-    # DocumentDB version: "5.0" uses $search syntax, "8.0" uses $vectorSearch
-    docdb_version: str = "5.0"
-
     index: IndexType = IndexType.HNSW
     metric_type: MetricType = MetricType.COSINE
 
