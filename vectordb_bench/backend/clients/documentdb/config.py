@@ -20,6 +20,7 @@ class DocumentDBIndexConfig(BaseModel, DBCaseConfig):
 
     # Search parameters
     num_candidates_ratio: int = 10  # numCandidates = k * ratio
+    ef_search: int = 128  # HNSW search accuracy (v5 only, higher = better recall)
 
     # HNSW index parameters
     m: int = 16  # Number of connections per layer
@@ -50,4 +51,5 @@ class DocumentDBIndexConfig(BaseModel, DBCaseConfig):
         return {
             "num_candidates_ratio": self.num_candidates_ratio,
             "exact": self.exact,
+            "ef_search": self.ef_search,
         }
