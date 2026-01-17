@@ -44,6 +44,7 @@ class DB(Enum):
     Test = "test"
     AliyunOpenSearch = "AliyunOpenSearch"
     MongoDB = "MongoDB"
+    DocumentDB = "DocumentDB"
     TiDB = "TiDB"
     CockroachDB = "CockroachDB"
     Clickhouse = "Clickhouse"
@@ -164,6 +165,11 @@ class DB(Enum):
             from .mongodb.mongodb import MongoDB
 
             return MongoDB
+
+        if self == DB.DocumentDB:
+            from .documentdb.documentdb import DocumentDB
+
+            return DocumentDB
 
         if self == DB.OceanBase:
             from .oceanbase.oceanbase import OceanBase
@@ -339,6 +345,11 @@ class DB(Enum):
 
             return MongoDBConfig
 
+        if self == DB.DocumentDB:
+            from .documentdb.config import DocumentDBConfig
+
+            return DocumentDBConfig
+
         if self == DB.OceanBase:
             from .oceanbase.config import OceanBaseConfig
 
@@ -493,6 +504,11 @@ class DB(Enum):
             from .mongodb.config import MongoDBIndexConfig
 
             return MongoDBIndexConfig
+
+        if self == DB.DocumentDB:
+            from .documentdb.config import DocumentDBIndexConfig
+
+            return DocumentDBIndexConfig
 
         if self == DB.OceanBase:
             from .oceanbase.config import _oceanbase_case_config
