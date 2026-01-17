@@ -71,6 +71,7 @@ DB_TO_ICON = {
     DB.Doris: "https://doris.apache.org/images/logo.svg",
     DB.TurboPuffer: "https://turbopuffer.com/logo2.png",
     DB.CockroachDB: "https://raw.githubusercontent.com/cockroachdb/cockroach/master/docs/media/cockroach_db.png",
+    DB.DocumentDB: "https://icon.icepanel.io/AWS/svg/Database/DocumentDB.svg",
 }
 
 # RedisCloud color: #0D6EFD

@@ -39,16 +39,7 @@ class DocumentDB(VectorDB):
         log.info(f"vectorOptions: {self.index_params}")
 
         # Initialize - they'll also be set in init()
-        uri = self.db_config["connection_string"]
-        self.client = MongoClient(
-            uri,
-            maxPoolSize=50,
-            serverSelectionTimeoutMS=60000,
-            connectTimeoutMS=30000,
-            socketTimeoutMS=120000,
-        )
-        self.db = self.client[self.db_config["database"]]
-        self.collection = self.db[self.collection_name]
+        self._create_client()
 
         # Auto-detect DocumentDB version from server
         self.docdb_version = self._detect_version()
@@ -64,17 +55,7 @@ class DocumentDB(VectorDB):
     def init(self):
         """Initialize DocumentDB client and cleanup when done"""
         try:
-            uri = self.db_config["connection_string"]
-            self.client = MongoClient(
-                uri,
-                maxPoolSize=50,
-                serverSelectionTimeoutMS=60000,
-                connectTimeoutMS=30000,
-                socketTimeoutMS=120000,
-            )
-            self.db = self.client[self.db_config["database"]]
-            self.collection = self.db[self.collection_name]
-
+            self._create_client()
             yield
         finally:
             if self.client is not None:
@@ -82,6 +63,21 @@ class DocumentDB(VectorDB):
                 self.client = None
                 self.db = None
                 self.collection = None
+
+    def _create_client(self) -> MongoClient:
+        """Create MongoClient with connection pool settings"""
+        uri = self.db_config["connection_string"]
+        client = MongoClient(
+            uri,
+            maxPoolSize=100,
+            serverSelectionTimeoutMS=120000,   # 2 min for server selection
+            connectTimeoutMS=60000,            # 1 min for initial connection
+            socketTimeoutMS=1800000,           # 30 min for long-running index ops
+        )
+        self.client = client
+        self.db = client[self.db_config["database"]]
+        self.collection = self.db[self.collection_name]
+        return client
 
     def _detect_version(self) -> str:
         """Auto-detect DocumentDB version from server"""
@@ -140,7 +136,7 @@ class DocumentDB(VectorDB):
             log.exception(f"Error creating index {index_name}")
             raise
 
-    def _wait_for_index_ready(self, index_name: str, check_interval: int = 5, max_wait: int = 600) -> None:
+    def _wait_for_index_ready(self, index_name: str, check_interval: int = 5, max_wait: int = 1800) -> None:
         """Wait for index to be ready"""
         start_time = time.time()
         while True:
@@ -248,7 +244,6 @@ class DocumentDB(VectorDB):
                 "$project": {
                     "_id": 0,
                     self.id_field: 1,
-                    "score": {"$meta": "vectorSearchScore"},
                 }
             },
         ]
