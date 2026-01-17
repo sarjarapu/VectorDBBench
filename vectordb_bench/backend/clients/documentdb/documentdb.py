@@ -227,9 +227,9 @@ class DocumentDB(VectorDB):
         if search_params.get("exact"):
             vector_search["exact"] = True
         else:
-            # Set numCandidates based on k value
-            num_candidates = min(10000, k * search_params.get("num_candidates_ratio", 10))
-            vector_search["numCandidates"] = num_candidates
+            ef_search = search_params.get("ef_search", 128)
+            # (numCandidates = efSearch)
+            vector_search["numCandidates"] = ef_search
 
         # Add filter if specified
         if filters:
