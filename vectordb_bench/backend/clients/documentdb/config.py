@@ -20,11 +20,11 @@ class DocumentDBIndexConfig(BaseModel, DBCaseConfig):
 
     # Search parameters
     num_candidates_ratio: int = 10  # numCandidates = k * ratio
-    ef_search: int = 128  # HNSW search accuracy (v5 only, higher = better recall)
+    ef_search: int = 256  # HNSW search accuracy (v5 only, higher = better recall)
 
     # HNSW index parameters
     m: int = 16  # Number of connections per layer
-    ef_construction: int = 64  # Size of dynamic candidate list for construction
+    ef_construction: int = 256  # Size of dynamic candidate list for construction
 
     # Flags
     exact: bool = False  # Use exact search (no ANN)

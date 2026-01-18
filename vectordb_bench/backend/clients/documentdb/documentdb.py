@@ -72,7 +72,8 @@ class DocumentDB(VectorDB):
             maxPoolSize=100,
             serverSelectionTimeoutMS=120000,   # 2 min for server selection
             connectTimeoutMS=60000,            # 1 min for initial connection
-            socketTimeoutMS=1800000,           # 30 min for long-running index ops
+            socketTimeoutMS=24*60*60*1000,     # 24 hr for long-running index ops
+
         )
         self.client = client
         self.db = client[self.db_config["database"]]
@@ -131,6 +132,7 @@ class DocumentDB(VectorDB):
             # Create regular index on id field for faster lookups
             self.collection.create_index(self.id_field)
             log.info(f"Created index on {self.id_field} field")
+            self._wait_for_index_ready(self.id_field)
 
         except Exception:
             log.exception(f"Error creating index {index_name}")
