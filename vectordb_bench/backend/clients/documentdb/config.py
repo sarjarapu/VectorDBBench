@@ -25,6 +25,7 @@ class DocumentDBIndexConfig(BaseModel, DBCaseConfig):
     # HNSW index parameters
     m: int = 16  # Number of connections per layer
     ef_construction: int = 256  # Size of dynamic candidate list for construction
+    workers: int | None = None  # Parallel index workers (v8+ only, default: 2, max: vCPUs/2)
 
     # Flags
     exact: bool = False  # Use exact search (no ANN)

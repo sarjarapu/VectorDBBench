@@ -118,13 +118,20 @@ class DocumentDB(VectorDB):
         try:
             # Create vector index using DocumentDB runCommand syntax
             # See: https://docs.aws.amazon.com/documentdb/latest/developerguide/vector-search.html
+            index_spec = {
+                "key": {self.vector_field: "vector"},
+                "vectorOptions": vector_options,
+                "name": index_name,
+            }
+
+            # Add parallel workers for v8+ only
+            if self._is_version_8_or_higher() and self.case_config.workers:
+                index_spec["workers"] = self.case_config.workers
+                log.info(f"Using {self.case_config.workers} parallel workers for index creation (v8+)")
+
             result = self.db.command({
                 "createIndexes": self.collection_name,
-                "indexes": [{
-                    "key": {self.vector_field: "vector"},
-                    "vectorOptions": vector_options,
-                    "name": index_name,
-                }]
+                "indexes": [index_spec]
             })
             log.info(f"Created vector index: {index_name}, result: {result}")
             self._wait_for_index_ready(index_name)
